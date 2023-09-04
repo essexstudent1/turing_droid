@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[257]:
+# In[1]:
 
 
 # Install required modules
@@ -12,13 +12,19 @@ get_ipython().run_line_magic('pip', 'install tensorflow')
 get_ipython().run_line_magic('pip', 'install scikit-learn')
 get_ipython().run_line_magic('pip', 'install nltk')
 get_ipython().run_line_magic('pip', 'install keras')
+get_ipython().run_line_magic('pip', 'install praw')
+get_ipython().run_line_magic('pip', 'install psaw')
+get_ipython().run_line_magic('pip', 'install python-dotenv')
+get_ipython().run_line_magic('pip', 'install hugchat')
+print('Module installation complete.')
 
 
-# In[258]:
+# In[2]:
 
 
 # Import critical libraries and modules
 
+# Machne learning libraries and modules
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -47,23 +53,41 @@ from keras.initializers import Constant
 from keras.optimizers import Adam
 from keras import backend as K
 
+# Reddit API libraries and modules
+import praw
+import psaw
+import os
+from psaw import PushshiftAPI
+from dotenv import load_dotenv
 
-# In[259]:
+# LLM libraries and modules
+from hugchat import hugchat
+from hugchat.login import Login
+
+print('Library initalization complete.')
 
 
+# In[15]:
+
+
+### BEGIN TRAINING PROCESS
+print('Initialization complete. Commencing training process.')
+
+# Download common stopwords
 nltk.download('stopwords')
 nltk.download('wordnet')
 nltk.download('punkt')
 
 
-# In[260]:
+# In[16]:
 
 
-train= pd.read_csv('~/input/anti-lgbt-cyberbullying.csv')
+# Read the training data
+train= pd.read_csv('input/anti-lgbt-cyberbullying.csv')
 train.head()
 
 
-# In[261]:
+# In[17]:
 
 
 # Define pre-processing functions
@@ -112,13 +136,13 @@ train['clean_text'] = train['text'].apply(lambda x: remove_URL(x))
 train['clean_text'] = train['clean_text'].apply(lambda x: remove_emoji(x))
 train['clean_text'] = train['clean_text'].apply(lambda x: remove_html(x))
 train['clean_text'] = train['clean_text'].apply(lambda x: remove_punct(x))
-train['clean_text'] = train['clean_text'].apply(lambda x: make_lower(x))
+#train['clean_text'] = train['clean_text'].apply(lambda x: make_lower(x))
 train['clean_text'] = train['clean_text'].apply(lambda x: stemming(x))
 
 train.head()
 
 
-# In[262]:
+# In[18]:
 
 
 # Tokenize the cleaned texts.
@@ -126,7 +150,7 @@ train['tokenized'] = train['clean_text'].apply(word_tokenize)
 train.head()
 
 
-# In[263]:
+# In[19]:
 
 
 # Remove stopwords from text
@@ -138,7 +162,7 @@ train['no_stopwords'] = [' '.join(map(str, l)) for l in train['no_stopwords']]
 train.head()
 
 
-# In[264]:
+# In[20]:
 
 
 #Place pre-processed text into a list
@@ -146,7 +170,7 @@ train_texts = train['no_stopwords'].tolist()
 
 # Open and process GloVe embeddings
 embeddings_index = dict()
-f = open('/home/arahu/input/glove.6B.100d.txt')
+f = open('input/glove.6B.100d.txt')
 for line in f:
     values = line.split()
     word = values[0]
@@ -155,7 +179,7 @@ for line in f:
 f.close()
 
 
-# In[265]:
+# In[21]:
 
 
 # Create word embeddings for the texts
@@ -176,20 +200,18 @@ for word, i in tok.word_index.items():
         text_embedding_matrix[i] = t_embedding_vector
 
 
-# In[277]:
+# In[22]:
 
 
 # Split the data into training and testing sets
-X = padded_text
-Y = train["anti_lgbt"]
 
 x_train, x_test, y_train, y_test = train_test_split(
-                    X,Y, 
+                    padded_text, train["anti_lgbt"], 
                     test_size=0.2, shuffle=True)
 
 
 
-# In[278]:
+# In[23]:
 
 
 # define the f1 score algorithm required for BiLSTM 
@@ -205,7 +227,7 @@ def f1_score(y_true, y_pred):
     return f1_val
 
 
-# In[279]:
+# In[24]:
 
 
 # Define early stopping callback for BiLSTM
@@ -231,86 +253,155 @@ model.compile(loss='binary_crossentropy', optimizer=optimzer, metrics=['accuracy
 print(model.summary())
 
 
-# In[280]:
+# In[25]:
 
 
 # Fit the training data to the model
-model.fit(x_train, y_train, callbacks=[early_stopping], epochs = 30, batch_size=32, verbose=1)
+model.fit(x_train, y_train, callbacks=[early_stopping], epochs = 30, batch_size=32)
 
 
-# In[282]:
+# In[26]:
 
 
 # Develop predictions on the test data
-results = model.evaluate(x_test, y_test, batch_size=32)
-print (results)
 y_pred = model.predict(x_test)
-#print(y_test[:5])
-#print(y_pred[:5])
 
 
-# In[283]:
+# In[27]:
 
 
 # Report on the effectiveness of the model
 pr, rc, thresholds = precision_recall_curve(y_test, y_pred)
-#plt.plot(thresholds, pr[1:])
-#plt.plot(thresholds, rc[1:])
-#plt.show()
 crossover_index = np.max(np.where(pr == rc))
 crossover_cutoff = thresholds[crossover_index]
-crossover_recall = rc[crossover_index]
-print("Crossover at {0:.2f} with recall {1:.2f}".format(crossover_cutoff, crossover_recall))
+#crossover_recall = rc[crossover_index]
+#print("Crossover at {0:.2f} with recall {1:.2f}".format(crossover_cutoff, crossover_recall))
+print('Training complete. Model effectiveness:')
 print(classification_report(y_test, y_pred > crossover_cutoff))
 
 
-# In[290]:
+# In[13]:
 
 
-test_text = 'fuck off retarded faggot'
+## BEGIN PREDICTION MODULE
+
+#test_text = 'fuck off retarded faggot'
 #test_text = 'i love all of you beautiful people'
+#test_text = 'Hi there beautiful people!'
 
-test_text = remove_URL(test_text)
-test_text = remove_emoji(test_text)
-test_text = remove_html(test_text)
-test_text = remove_punct(test_text)
-#test_text = make_lower(test_text)
-test_text = stemming(test_text)
-test_text = word_tokenize(test_text)
-filtered_text = [t for t in test_text if not t in stopwords.words("english")]
-filtered_text = ' '.join(filtered_text)
-#filtered_text = [' '.join(map(str, l)) for l in filtered_text]
-#filtered_text = test_text
-#print(" ".join(filtered_text))
-#filtered_text = test_text
-#filtered_text = join(filtered_text)
-print(filtered_text)
+# Define the prediction function. 
+# This function takes a single text input and returns either 0 (not cyberbullying) or 1 (cyberbullying)
+def predict_cb(text):
+    my_text = remove_URL(text)
+    my_text = remove_emoji(my_text)
+    my_text = remove_html(my_text)
+    my_text = remove_punct(my_text)
+    #test_text = make_lower(test_text)
+    my_text = stemming(my_text)
+    my_text = word_tokenize(my_text)
+    filtered_text = [t for t in my_text if not t in stopwords.words("english")]
+    filtered_text = ' '.join(filtered_text)
+    tok.fit_on_texts([filtered_text])
+    #print(filtered_text)
+    test_seq =  tok.texts_to_sequences([filtered_text])
+    #print(test_seq)
+    my_padded_text = pad_sequences(test_seq, maxlen=max_len_text, padding='post')
+    prediction = model.predict(my_padded_text)
+    #print(predict)
+    prediction = np.round(prediction).astype(int)
+    return(prediction)
 
-
-# In[291]:
-
-
-tok.fit_on_texts([filtered_text])
-print(filtered_text)
-test_seq =  tok.texts_to_sequences([filtered_text])
-print(test_seq)
-
-new_padded_text = pad_sequences(test_seq, maxlen=max_len_text, padding='post')
-
-print(new_padded_text)
+#print(int(predict_cb(test_text)))
 
 
-
-# In[292]:
-
-
-predict = model.predict(new_padded_text)
-print(predict)
-predict = np.round(predict).astype(int)
-print(predict)
+# In[14]:
 
 
-# In[ ]:
+## BEGIN DETECTION MODULE
+
+# Load environment variables containing credentials
+load_dotenv('../.env')
+
+#V erify that required credentials exist as environment variables
+credential_vars = ["client_id", "client_secret", "sns_username", "sns_password", "llm_username", "llm_password"]
+for var in credential_vars:
+    if var not in os.environ:
+        raise EnvironmentError("Required environment variable {} is not set.".format(var))
+
+# Import API credentials
+client_id = os.environ['client_id']
+client_secret = os.environ['client_secret']
+sns_username = os.environ['sns_username']
+sns_password = os.environ['sns_password']
+llm_username = os.environ['llm_username']
+llm_password = os.environ['llm_password']
+
+# Set bot name
+user_agent = 'TuringDroid:1.0'
+
+# Set name of the subreddit to monitor
+target_community = 'TuringDroidTesting'
+
+
+# In[15]:
+
+
+# Define the SNS (social networking site) class
+
+class SNS:
+    def __init__(self):
+        self.name = 'Reddit'
+
+    # Define function to connect to the target social networking site (in this case Reddit)
+    def connect(self):
+        my_sns = praw.Reddit(
+            client_id = client_id,
+            client_secret = client_secret,
+            username = sns_username,
+            password = sns_password,
+            user_agent = '<' + user_agent + ':by: /u/' + sns_username + '>'
+        )
+        self.connection = my_sns
+        
+    # Define function to connect to a specific group/community (in this case a subreddit)
+    def set_community(self, request):
+        my_community = self.connection.subreddit(request)
+        self.community = my_community
+
+    # Monitor for new comments
+    # This method will loop forever or until interrupted
+    def monitor(self):
+        for comment in self.community.stream.comments(skip_existing=True):
+            print('Found new comment:', comment.id)
+            print('   Author:', comment.author)
+            print('   Text:', comment.body)
+            cb = int(predict_cb(comment.body))
+            print('   Cyberbullying prediction:', cb)
+        
+
+
+# In[16]:
+
+
+# Connect to target social networking site
+
+# Initialize social networking site class
+sns = SNS()
+
+# Connect to the target sns
+sns.connect()
+
+# Set target commmunity within sns for monitoring
+sns.set_community(target_community)
+
+print('Connected to Reddit using username:', sns_username)
+print('Monitoring subreddit:', target_community)
+
+
+# In[17]:
+
+
+sns.monitor()
 
 
 
