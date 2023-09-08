@@ -27,7 +27,7 @@ Comments are sent to the deep learning model for evaluation. Comments predicted 
 
 The response engine runs as multiple consumer threads. These threads read detected anti-LGBT cyberbullying messages from the message queue.
 Cyberbullying messages are sent via API to a publicly available large language model (LLM) artificial intelligence system. The messages are sent
-as part of a prompt requested that the LLM provide a reponse from the standpoint of a bystander seeking to provide support to the cyberbullying victim.
+as part of a prompt requesting that the LLM provide a reponse from the standpoint of a bystander seeking to provide support to the cyberbullying victim.
 The response message from the LLM is then posted as a reply to the cyberbullying comment on Reddit.
 
 
