@@ -16,10 +16,7 @@ The chatbot provides the following functions:
 The chatbot uses a custom annotated dataset to train a deep learning model to do binary classification on text inputs, predicting whether the texts are anti-LGBT cyberbullying or not. 
 The dataset used is described in more detail at https://www.kaggle.com/datasets/kw5454331/anti-lgbt-cyberbullying-texts. 
 
-The model leverages GloVe word vectors. To run the application, the 100d pre-trained word vector file needs to be downloaded (https://nlp.stanford.edu/projects/glove/) 
-and placed in the 'input' folder.
-
-The model is based on a bidirectional long short term memory (BiLSTM) recurrent neural network.
+The model leverages GloVe word vectors, and is based on a bidirectional long short term memory (BiLSTM) recurrent neural network.
 
 2) Detection
 
@@ -33,3 +30,14 @@ Cyberbullying messages are sent via API to a publicly available large language m
 as part of a prompt requested that the LLM provide a reponse from the standpoint of a bystander seeking to provide support to the cyberbullying victim.
 The response message from the LLM is then posted as a reply to the cyberbullying comment on Reddit.
 
+
+### USAGE
+
+ - The model leverages GloVe word vectors. To run the application, the 100d pre-trained word vector file needs to be downloaded (https://nlp.stanford.edu/projects/glove/) 
+and placed in the 'input' folder.
+
+ - The chatbot requires several secrets. To connect to Reddit, you need an API client id and client secret, as well as a Reddit username and password. To connect to the LLM, you need a HuggingChat username and password. The chatbot uses the Python 'dotenv' module to read these secrets from a file named '.env'.
+ 
+
+
+ 
