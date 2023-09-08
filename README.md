@@ -38,6 +38,8 @@ and placed in the 'input' folder.
 
  - The chatbot requires several secrets. To connect to Reddit, you need an API client id and client secret, as well as a Reddit username and password. To connect to the LLM, you need a HuggingChat username and password. The chatbot uses the Python 'dotenv' module to read these secrets from a file named '.env'.
 
+ - The specific subreddit to monitor is assigned to the variable 'target_community'.
+
  - The chatbot executable script is TuringDroid.py.
 
  - This repository also contains the Python script turingdroid-analysis.py. This was developed as a Kaggle notebook to do preliminary analysis on the dataset and compare the performance of various machine learning and deep learning algorithms. It is included here for completeness.
