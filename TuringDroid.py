@@ -7,7 +7,7 @@
 ## SETUP
 
 
-# In[ ]:
+# In[146]:
 
 
 # Install required modules
@@ -22,10 +22,11 @@ get_ipython().run_line_magic('pip', 'install praw')
 get_ipython().run_line_magic('pip', 'install psaw')
 get_ipython().run_line_magic('pip', 'install python-dotenv')
 get_ipython().run_line_magic('pip', 'install hugchat')
+get_ipython().run_line_magic('pip', 'install imblearn')
 print('Module installation complete.')
 
 
-# In[ ]:
+# In[147]:
 
 
 # Import general modules
@@ -60,6 +61,8 @@ from keras.initializers import Constant
 from keras.optimizers import Adam
 from keras import backend as K
 
+from imblearn.over_sampling import SMOTE
+
 # Reddit API libraries and modules
 import praw
 import psaw
@@ -74,13 +77,13 @@ from hugchat.login import Login
 print('Library initalization complete.')
 
 
-# In[ ]:
+# In[87]:
 
 
 ## DEFINE MODELS
 
 
-# In[ ]:
+# In[148]:
 
 
 # Define the Machine Learning Model class
@@ -101,8 +104,8 @@ class MODEL:
         self.model.add(Dense(32, activation='relu'))
         self.model.add(Dropout(0.2))
         self.model.add(Dense(1, activation='sigmoid'))
-        self.optimzer=Adam(learning_rate=3e-4)
-        self.model.compile(loss='binary_crossentropy', optimizer=optimzer, metrics=['accuracy', 'mae', f1_score])
+        self.model.optimzer=Adam(learning_rate=3e-4)
+        self.model.compile(loss='binary_crossentropy', optimizer=self.model.optimzer, metrics=['accuracy', 'mae', f1_score])
         #print(model.summary())
 
     #  Fit requested training data to the model
@@ -116,25 +119,30 @@ class MODEL:
 
     # Define the cyberbullying prediction function. 
     # This function takes a single text input and returns either 0 (not cyberbullying) or 1 (cyberbullying)
-    def predict_cb(self.text):
+    def predict_cb(self, text):
         my_text = remove_URL(text)
         my_text = remove_emoji(my_text)
         my_text = remove_html(my_text)
         my_text = remove_punct(my_text)
         my_text = stemming(my_text)
         my_text = word_tokenize(my_text)
+        print('tokenized text', my_text)
         filtered_text = [t for t in my_text if not t in stopwords.words("english")]
         filtered_text = ' '.join(filtered_text)
+        print('filtered text', filtered_text)
         tok.fit_on_texts([filtered_text])
         test_seq =  tok.texts_to_sequences([filtered_text])
         my_padded_text = pad_sequences(test_seq, maxlen=max_len_text, padding='post')
+        print('padded:', my_padded_text)
         my_prediction = self.model.predict(my_padded_text)
+        print('raw prediction: ', my_prediction)
         my_prediction = np.round(my_prediction).astype(int)
+        print('rounded prediction: ', my_prediction)
         return(my_prediction)
         
 
 
-# In[ ]:
+# In[149]:
 
 
 # Define the SNS (social networking site) class
@@ -169,6 +177,9 @@ class SNS:
     def monitor(self, my_model, my_queue):
         for comment in self.community.stream.comments(skip_existing=True):
             my_cb = int(my_model.predict_cb(comment.body))
+            # Log comments and results
+            print('New comment found. Text: ', comment.body)
+            print('Cyberbullying prediction = ', my_cb)
             if my_cb == 1:
                 my_queue.put(comment)
 
@@ -180,7 +191,7 @@ class SNS:
             
 
 
-# In[ ]:
+# In[150]:
 
 
 # Define the DATASET class
@@ -201,17 +212,17 @@ class DATASET:
 
     # Apply a word tokenize function to the specified column in the dataset, applied to the specified output column
     def tokenize(self, input_col, output_col):
-        self.train[input_col] = self.train[output_col].apply(word_tokenize)
+        self.train[output_col] = self.train[input_col].apply(word_tokenize)
 
     # Remove stopwords from the specified column in the dataset, applied to the specified output column
     def remove_stopwords(self, input_col, output_col):
         self.train[output_col] = self.train[input_col].apply(
             lambda x: [word for word in x if word not in set(nltk.corpus.stopwords.words('english'))])
-        train[output_col] = [' '.join(map(str, l)) for l in train[output_col]]
+        self.train[output_col] = [' '.join(map(str, l)) for l in self.train[output_col]]
         
 
 
-# In[ ]:
+# In[151]:
 
 
 # Define the LLM (large language model) class
@@ -225,7 +236,7 @@ class LLM:
     # Connect to the target LLM
     def connect(self, username, password):
         self.sign = Login(username, password)
-        self.cookies = sign.login()
+        self.cookies = self.sign.login()
         self.chatbot = hugchat.ChatBot(cookies=self.cookies.get_dict())
 
     # Query the LLM and return the response
@@ -237,13 +248,13 @@ class LLM:
         
 
 
-# In[ ]:
+# In[152]:
 
 
 ## DEFINE FUNCTIONS
 
 
-# In[ ]:
+# In[153]:
 
 
 # Function to remove URLs from text
@@ -286,7 +297,7 @@ def remove_punct(text):
     return text.translate(table)
 
 
-# In[ ]:
+# In[154]:
 
 
 # define the f1 score algorithm required for BiLSTM 
@@ -303,7 +314,7 @@ def f1_score(y_true, y_pred):
     
 
 
-# In[ ]:
+# In[155]:
 
 
 # Define function to open and process GloVe embeddings
@@ -320,13 +331,13 @@ def glove(file):
     
 
 
-# In[ ]:
+# In[156]:
 
 
 ## DEFINE THREADS
 
 
-# In[ ]:
+# In[157]:
 
 
 # Define responder thread
@@ -337,7 +348,7 @@ def responder(my_queue, my_llm, my_sns):
     while True:
         my_comment = my_queue.get()
         # Wait a random amount of time before proceeding to emulate a real bystander
-        time.sleep(random.randint(60, 360))
+        #time.sleep(random.randint(60, 360))
         my_query = "The following comment from Reddit has been detected as cyberbullying against an LGBT individual. " + \
             "Commment = {" + my_comment.body + "}. " + \
             "Provide a response to this comment as though you are a bystander who wants to show support for the victim, "+ \
@@ -347,17 +358,18 @@ def responder(my_queue, my_llm, my_sns):
             "a 30-year old person who lives in the USA, has a liberal arts education, is technically adept, " + \
             "and is a strong ally of the LGBT community."
         my_response = my_llm.query(my_query)
+        print('Recieved response from LLM:', my_response)
         my_sns.reply(my_comment, my_response)
         my_queue.task_done()
 
 
-# In[ ]:
+# In[158]:
 
 
 ## BEGIN MAIN APPLICATION
 
 
-# In[ ]:
+# In[159]:
 
 
 # Load files and set variables
@@ -391,19 +403,19 @@ user_agent = 'TuringDroid:1.0'
 target_community = 'TuringDroidTesting'
 
 
-# In[ ]:
+# In[100]:
 
 
 ### BEGIN TRAINING PROCESS
 
 
-# In[ ]:
+# In[160]:
 
 
 print('Initialization complete. Commencing training process.')
 
 
-# In[ ]:
+# In[161]:
 
 
 # Read the training data
@@ -411,7 +423,7 @@ training_data = DATASET('input/anti-lgbt-cyberbullying.csv')
 training_data.train.head()
 
 
-# In[ ]:
+# In[162]:
 
 
 # Clean the dataset
@@ -419,7 +431,7 @@ training_data.clean('text', 'clean_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[163]:
 
 
 # Tokenize the dataset
@@ -427,7 +439,7 @@ training_data.tokenize('clean_text', 'processed_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[164]:
 
 
 # Remove stopwords from the dataset
@@ -435,17 +447,24 @@ training_data.remove_stopwords('processed_text', 'processed_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[165]:
 
 
 #Place pre-processed text into a list
 train_texts = training_data.train['processed_text'].tolist()
 
 # Open and process GloVe embeddings
-glove('input/glove.6B.100d.txt')
+embeddings_index = dict()
+f = open('input/glove.6B.100d.txt')
+for line in f:
+    values = line.split()
+    word = values[0]
+    coefs = np.asarray(values[1:], dtype='float32')
+    embeddings_index[word] = coefs
+f.close()
 
 
-# In[ ]:
+# In[166]:
 
 
 # Create word embeddings for the texts
@@ -466,7 +485,7 @@ for word, i in tok.word_index.items():
         text_embedding_matrix[i] = t_embedding_vector
 
 
-# In[ ]:
+# In[167]:
 
 
 # Split the data into training and testing sets
@@ -476,7 +495,15 @@ x_train, x_test, y_train, y_test = train_test_split(
                     test_size=0.2, shuffle=True)
 
 
-# In[ ]:
+# In[169]:
+
+
+smote = SMOTE()
+x_train_smote, y_train_smote = smote.fit_resample(x_train, y_train.values)
+#print(X_train_smote.shape, y_train_smote.shape)
+
+
+# In[170]:
 
 
 # Define early stopping for the training model
@@ -488,7 +515,7 @@ early_stopping = EarlyStopping(
 )
 
 
-# In[ ]:
+# In[171]:
 
 
 # Build and train the machine learning model
@@ -497,17 +524,18 @@ ml_model = MODEL()
 
 ml_model.build()
 
-ml_model.train(x_train, y_train, early_stopping, 30, 32)
+#ml_model.train(x_train, y_train, early_stopping, 100, 32)
+ml_model.train(x_train_smote, y_train_smote, early_stopping, 100, 32)
 
 
-# In[ ]:
+# In[172]:
 
 
 # Develop predictions on the test data
 y_pred = ml_model.validate(x_test)
 
 
-# In[ ]:
+# In[173]:
 
 
 # Report on the effectiveness of the model
@@ -518,13 +546,13 @@ print('Training complete. Model effectiveness:')
 print(classification_report(y_test, y_pred > crossover_cutoff))
 
 
-# In[ ]:
+# In[113]:
 
 
 ## BEGIN DETECTION & RESPONSE MODULE
 
 
-# In[ ]:
+# In[114]:
 
 
 # Connect to target social networking site
@@ -539,7 +567,7 @@ sns.connect()
 sns.set_community(target_community)
 
 
-# In[ ]:
+# In[115]:
 
 
 # Connect to target large language model
@@ -551,14 +579,14 @@ llm = LLM()
 llm.connect(llm_username, llm_password)
 
 
-# In[ ]:
+# In[116]:
 
 
 # Set up message queue
 MsgQ = Queue()
 
 
-# In[ ]:
+# In[75]:
 
 
 # Start four responder threads
@@ -569,12 +597,33 @@ for i in range(4):
     thread.start()
 
 
-# In[ ]:
+# In[77]:
 
 
 # Begin monitoring
+print('Detection module initialized.')
+print('Connected to site ' + sns.name + ' using username ' + sns_username)
+print('Connected to LLM ' + llm.name + ' using username ' + llm_username)
+print('Starting to monitor community', target_community)
 sns.monitor(ml_model, MsgQ)
 
 # Never reached
+
+
+
+# In[182]:
+
+
+#some testing stuff
+#test_text = "Congratulations! I am so glad you are able to be yourself. Love is love and gender doesn't have to be binary."
+test_text = 'this is retarded. there are only two genders, and pride is a sin. all queers go to hell.'
+my_test = ml_model.predict_cb(test_text)
+print(my_test)
+
+
+
+# In[ ]:
+
+
 
 
