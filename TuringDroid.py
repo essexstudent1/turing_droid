@@ -611,19 +611,4 @@ sns.monitor(ml_model, MsgQ)
 
 
 
-# In[182]:
-
-
-#some testing stuff
-#test_text = "Congratulations! I am so glad you are able to be yourself. Love is love and gender doesn't have to be binary."
-test_text = 'this is retarded. there are only two genders, and pride is a sin. all queers go to hell.'
-my_test = ml_model.predict_cb(test_text)
-print(my_test)
-
-
-
-# In[ ]:
-
-
-
 
