@@ -4,9 +4,10 @@
 # In[ ]:
 
 
-""" TuringDroid 
+""" turing_droid.py
 
-9/25   laptop
+    An AI chatbot to detect and mitigate anti-LGBTQ+ 
+    cyberbullying on social networking sites.
 """
 
 ## SETUP
