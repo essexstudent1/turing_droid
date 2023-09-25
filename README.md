@@ -1,11 +1,11 @@
-# turing-droid
+# turing_droid
 
-“This is only a foretaste of what is to come and only the shadow of what is going to be.”
-
-              - Alan Turing, the father of artificial intelligence.
-                Alan Turing was bullied into suicide by his own government for the crime of being gay.  
+#      “This is only a foretaste of what is to come and only the shadow of what is going to be.”
+#
+#              - Alan Turing, the father of artificial intelligence.
+#                Alan Turing was bullied into suicide by his own government for the crime of being gay.  
                 
-TuringDroid is an AI-powered chatbot designed to detect and intervene in anti-LGBTQ+ cyberbullying.
+turing_droid is an AI-powered chatbot designed to detect and intervene in anti-LGBTQ+ cyberbullying.
 
 This artefact is a proof-of-concept software application developed in support of a MSc Cyber Securty thesis.
 
@@ -40,12 +40,6 @@ and placed in the 'input' folder.
 
  - The specific subreddit to monitor is assigned to the variable 'target_community'.
 
- - The chatbot executable script is TuringDroid.py.
+ - The chatbot executable script is turing_droid.py.
 
- - This repository also contains the Python script turingdroid-analysis.py. This was developed as a Kaggle notebook to do preliminary analysis on the dataset and compare the performance of various machine learning and deep learning algorithms. It is included here for completeness.
-
-
- 
-
-
- 
+ - This repository also contains the Python script turingdroid_analysis.py. This was developed as a Kaggle notebook to do preliminary analysis on the dataset and compare the performance of various machine learning and deep learning algorithms. It is included here for completeness.
