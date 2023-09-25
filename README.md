@@ -1,9 +1,9 @@
 # turing_droid
 
-#      “This is only a foretaste of what is to come and only the shadow of what is going to be.”
-#
-#              - Alan Turing, the father of artificial intelligence.
-#                Alan Turing was bullied into suicide by his own government for the crime of being gay.  
+      “This is only a foretaste of what is to come and only the shadow of what is going to be.”
+
+              Alan Turing, the father of artificial intelligence.
+                Alan Turing was bullied into suicide by his own government for the crime of being gay.  
                 
 turing_droid is an AI-powered chatbot designed to detect and intervene in anti-LGBTQ+ cyberbullying.
 
