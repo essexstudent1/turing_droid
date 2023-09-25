@@ -94,17 +94,17 @@ print('Library initalization complete.')
 class Model:
     """ A class used to represent a machine learning model.
 
-    Attributes:
-        name: A descriptive name of the model. 
-        model: An instantiation of a Keras model class.
-        epochs: The number of training iterations to invoke.
-        batch_size: The training batch size.
-
-    Methods:
-        build: Add layers and other hyperparamenters to the model.
-        train: Train the model using training data.
-        validate: Validate the model using test data.
-        predict_cb: Ask the model for a cyberbullying prediction.
+        Attributes:
+            name: A descriptive name of the model. 
+            model: An instantiation of a Keras model class.
+            epochs: The number of training iterations to invoke.
+            batch_size: The training batch size.
+    
+        Methods:
+            build: Add layers and other hyperparamenters to the model.
+            train: Train the model using training data.
+            validate: Validate the model using test data.
+            predict_cb: Ask the model for a cyberbullying prediction.
     """
 
     def __init__(self):
@@ -134,14 +134,13 @@ class Model:
     def train(self, input_data, target_data, callbacks):
         """ Train the model by invoking the Keras model fit method.
 
-        Args:
-            input_data: A list of padded and vectorized texts.
-            target_data: A list of classifications for the input data.
-            callbacks: A list of callbacks for the Keras fit method.
-            
-
-        Returns:
-            The results of the Keras model fit method.
+            Args:
+                input_data: A list of padded and vectorized texts.
+                target_data: A list of classifications for the input data.
+                callbacks: A list of callbacks for the Keras fit method. 
+    
+            Returns:
+                The results of the Keras model fit method.
         """
         my_results = self.model.fit(input_data,
                                     target_data,
@@ -153,11 +152,11 @@ class Model:
     def validate(self, input_data):
         """ Generate predictions from the model for validation.
 
-        Args:
-            input_data: A list of padded and vectorized texts.
-    
-        Returns:
-            The results of the Keras model predict method.
+            Args:
+                input_data: A list of padded and vectorized texts.
+        
+            Returns:
+                The results of the Keras model predict method.
         """
         my_predictions = self.model.predict(input_data)
         return my_predictions
@@ -165,13 +164,13 @@ class Model:
     def predict_cb(self, input_text):
         """ Make a cyberbullying prediction on a string.
 
-        Args:
-            input_text: A string for which a prediciton is requested.
-
-        Returns:
-            A boolean indicating the results of the prediction:
-                0 = Not cyberbullying.
-                1 = Cyberbullying.
+            Args:
+                input_text: A string for which a prediciton is requested.
+    
+            Returns:
+                A boolean indicating the results of the prediction:
+                    0 = Not cyberbullying.
+                    1 = Cyberbullying.
         """
         my_text = remove_url(input_text)
         my_text = remove_emoji(my_text)
@@ -200,17 +199,17 @@ class Model:
 class SNS:
     """ A class used to represent a social networking site (SNS) 
 
-    Attributes:
-        name: The name of the SNS. 
-        connection: An instantiation of the praw Reddit class.
-        community: An instantiation of the praw subreddit method.
-        user_agent: The user agent to use to connect to the SNS.
-
-    Methods:
-        connect: Create an instantion of the praw Reddit class.
-        set_community: Invoke the praw subreddit method.
-        monitor: Monitor the SNS for new comments.
-        reply: Post a reply to a comment on the SNS.
+        Attributes:
+            name: The name of the SNS. 
+            connection: An instantiation of the praw Reddit class.
+            community: An instantiation of the praw subreddit method.
+            user_agent: The user agent to use to connect to the SNS.
+    
+        Methods:
+            connect: Create an instantion of the praw Reddit class.
+            set_community: Invoke the praw subreddit method.
+            monitor: Monitor the SNS for new comments.
+            reply: Post a reply to a comment on the SNS.
     """
 
     def __init__(self):
@@ -223,14 +222,14 @@ class SNS:
     def connect(self, client_id, client_secret, username, password):
         """ Create an instantion of the praw Reddit class.
 
-        Args:
-            client_id: The client identifier for the API.
-            client_secret: The client authenticator for the API.
-            username: The username for the SNS.
-            password: The password for the SNS.
-            
-        Returns:
-            None
+            Args:
+                client_id: The client identifier for the API.
+                client_secret: The client authenticator for the API.
+                username: The username for the SNS.
+                password: The password for the SNS.
+                
+            Returns:
+                None
         """
         my_sns = praw.Reddit(
             client_id = client_id,
@@ -244,11 +243,11 @@ class SNS:
     def set_community(self, request):
         """ Connect to a specific group/community (in this case a subreddit)
 
-        Args:
-            request: The requested group/community/subreddit
-
-        Returns:
-            None
+            Args:
+                request: The requested group/community/subreddit
+    
+            Returns:
+                None
         """
         my_community = self.connection.subreddit(request)
         self.community = my_community
