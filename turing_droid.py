@@ -13,27 +13,29 @@
 ## SETUP
 
 
-# In[ ]:
+# In[109]:
 
 
 # Install required modules
 
-#%pip install numpy
-#%pip install pandas
-#%pip install scikit-learn
-#%pip install nltk
-#%pip install keras
-#%pip install praw
-#%pip install python-dotenv
-#%pip install hugchat
-#print('Module installation complete.')
+get_ipython().run_line_magic('pip', 'install numpy')
+get_ipython().run_line_magic('pip', 'install pandas')
+get_ipython().run_line_magic('pip', 'install scikit-learn')
+get_ipython().run_line_magic('pip', 'install nltk')
+get_ipython().run_line_magic('pip', 'install keras')
+get_ipython().run_line_magic('pip', 'install tensorflow')
+get_ipython().run_line_magic('pip', 'install praw')
+get_ipython().run_line_magic('pip', 'install python-dotenv')
+get_ipython().run_line_magic('pip', 'install hugchat==0.2.9')
+print('Module installation complete.')
 
 
-# In[ ]:
+# In[1]:
 
 
 # Import general modules
 import os
+import sys
 import re
 import string
 #import tqdm
@@ -82,13 +84,13 @@ from hugchat.login import Login
 print('Library initalization complete.')
 
 
-# In[ ]:
+# In[2]:
 
 
 # Define Classes
 
 
-# In[ ]:
+# In[3]:
 
 
 class Model:
@@ -178,22 +180,22 @@ class Model:
         my_text = remove_punct(my_text)
         my_text = stemming(my_text)
         my_text = word_tokenize(my_text)
-        print('tokenized text', my_text)
+        #print('tokenized text', my_text)
         filtered_text = [t for t in my_text if not t in stopwords.words("english")]
         filtered_text = ' '.join(filtered_text)
-        print('filtered text', filtered_text)
+        #print('filtered text', filtered_text)
         tok.fit_on_texts([filtered_text])
         test_seq =  tok.texts_to_sequences([filtered_text])
         my_padded_text = pad_sequences(test_seq, maxlen=MAX_LEN_TEXT, padding='post')
-        print('padded:', my_padded_text)
+        #print('padded:', my_padded_text)
         my_prediction = self.model.predict(my_padded_text)
-        print('raw prediction: ', my_prediction)
+        #print('raw prediction: ', my_prediction)
         my_prediction = np.round(my_prediction).astype(int)
-        print('rounded prediction: ', my_prediction)
+        #print('rounded prediction: ', my_prediction)
         return my_prediction
 
 
-# In[ ]:
+# In[4]:
 
 
 class SNS:
@@ -203,6 +205,7 @@ class SNS:
             name: The name of the SNS. 
             connection: An instantiation of the praw Reddit class.
             community: An instantiation of the praw subreddit method.
+            username: The username of the chatbot on the SNS.
             user_agent: The user agent to use to connect to the SNS.
     
         Methods:
@@ -217,6 +220,7 @@ class SNS:
         self.name = 'Reddit'
         self.connection = None
         self.community = None
+        self.username = None
         self.user_agent = 'TuringDroid:1.0'
 
     def connect(self, client_id, client_secret, username, password):
@@ -239,6 +243,7 @@ class SNS:
             user_agent = '<' + self.user_agent + ':by: /u/' + username + '>'
         )
         self.connection = my_sns
+        self.username = username
 
     def set_community(self, request):
         """ Connect to a specific group/community (in this case a subreddit)
@@ -267,12 +272,19 @@ class SNS:
                 None. This method will loop forever or until interrupted.
         """
         for comment in self.community.stream.comments(skip_existing=True):
-            my_cb = int(my_model.predict_cb(comment.body))
-            # Log comments and results
-            print('New comment found. Text: ', comment.body)
-            print('Cyberbullying prediction = ', my_cb)
-            if my_cb == 1:
-                my_queue.put(comment)
+            # Do not reply to our own comments
+            if comment.author != self.username:
+                parent = comment.parent()
+                # Ignore replies to the chatbot
+                if parent.author != self.username:
+                    my_cb = int(my_model.predict_cb(comment.body))
+                    # Log comments and results
+                    print('New comment found. Text: ', comment.body)
+                    print('Bypassing CB prediction.')
+                    my_cb = 1
+                    print('Cyberbullying prediction = ', my_cb)
+                    if my_cb == 1:
+                        my_queue.put(comment)
 
     def reply(self, my_comment, response):
         """ Post a response to a specific comment
@@ -288,7 +300,7 @@ class SNS:
         return my_reply
 
 
-# In[ ]:
+# In[5]:
 
 
 class Dataset:
@@ -369,7 +381,7 @@ class Dataset:
         self.train[output_col] = [' '.join(map(str, l)) for l in self.train[output_col]]
 
 
-# In[ ]:
+# In[6]:
 
 
 class LLM:
@@ -380,7 +392,8 @@ class LLM:
             sign: An instantiation of the hugchat Login class.
             cookies: The results of the sign.login method.
             chatbot: An instantiation of the hugchat Chatbot class.
-    
+            cookie_path_dir: Path to save the LLM authentication cookies.
+
         Methods:
             connect: Create a connection to the LLM.
             query: Send a request to the LLM.
@@ -392,7 +405,8 @@ class LLM:
         self.sign = None
         self.cookies = None
         self.chatbot = None
-
+        self.cookie_path_dir = "./llm_cookies"
+        
     def connect(self, username, password):
         """ Create a connection to the LLM.
 
@@ -405,7 +419,11 @@ class LLM:
         """
         self.sign = Login(username, password)
         self.cookies = self.sign.login()
+        self.sign.saveCookiesToDir(self.cookie_path_dir)
         self.chatbot = hugchat.ChatBot(cookies=self.cookies.get_dict())
+        print('Testing LLM')
+        print(self.chatbot.chat('Hi'))
+        
 
     def query(self, request):
         """ Send a request to the LLM.
@@ -417,18 +435,22 @@ class LLM:
                 The response from the LLM.
         """
         conv_id = self.chatbot.new_conversation()
+        #print('Conversation id: ', conv_id)
         self.chatbot.change_conversation(conv_id)
+        print(f'Sending request [{request}].')
         my_response = self.chatbot.chat(request)
+        #my_response = 'Debugging'
+        print(f'Recieved response [{my_response}]')
         return my_response
 
 
-# In[ ]:
+# In[7]:
 
 
 ## DEFINE FUNCTIONS
 
 
-# In[ ]:
+# In[8]:
 
 
 def remove_url(text):
@@ -513,7 +535,7 @@ def remove_punct(text):
     return text.translate(table)
 
 
-# In[ ]:
+# In[9]:
 
 
 def f1_score(my_true, my_pred):
@@ -538,13 +560,13 @@ def f1_score(my_true, my_pred):
     return f1_val
 
 
-# In[ ]:
+# In[10]:
 
 
 ## DEFINE THREADS
 
 
-# In[ ]:
+# In[11]:
 
 
 def responder(my_queue, my_llm, my_sns):
@@ -582,13 +604,13 @@ def responder(my_queue, my_llm, my_sns):
         my_queue.task_done()
 
 
-# In[ ]:
+# In[12]:
 
 
 ## BEGIN MAIN APPLICATION
 
 
-# In[ ]:
+# In[13]:
 
 
 # Load files and set variables
@@ -599,7 +621,8 @@ nltk.download('wordnet')
 nltk.download('punkt')
 
 # Load environment variables containing credentials
-load_dotenv('../.env')
+if not load_dotenv('../.env'):
+    print('.env file not found. Trying to get credentials from environment variables.')
 
 #V erify that required credentials exist as environment variables
 credential_vars = ["sns_client_id", "sns_client_secret",
@@ -607,7 +630,8 @@ credential_vars = ["sns_client_id", "sns_client_secret",
                    "llm_username", "llm_password"]
 for var in credential_vars:
     if var not in os.environ:
-        raise EnvironmentError(f"Required environment variable {var} is not set.")
+        print(f"Required environment variable {var} is not set. Exiting.")
+        os.sys.exit()
 
 # Import API credentials
 sns_client_id = os.environ['sns_client_id']
@@ -621,27 +645,33 @@ llm_password = os.environ['llm_password']
 TARGET_COMMUNITY = 'TuringDroidTesting'
 
 
-# In[ ]:
+# In[14]:
 
 
 ### BEGIN TRAINING PROCESS
 
 
-# In[ ]:
+# In[15]:
 
 
 print('Initialization complete. Commencing training process.')
 
 
-# In[ ]:
+# In[16]:
 
 
 # Read the training data
-training_data = Dataset('input/anti-lgbt-cyberbullying.csv')
+DATASET = 'input/anti-lgbt-cyberbullying.csv'
+if os.path.exists(DATASET):
+    training_data = Dataset(DATASET)
+else:
+    print(f'Cannot find dataset {DATASET}. Exiting.')
+    os.sys.exit()
+
 training_data.train.head()
 
 
-# In[ ]:
+# In[17]:
 
 
 # Clean the dataset
@@ -649,7 +679,7 @@ training_data.clean('text', 'clean_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[18]:
 
 
 # Tokenize the dataset
@@ -657,7 +687,7 @@ training_data.tokenize('clean_text', 'processed_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[19]:
 
 
 # Remove stopwords from the dataset
@@ -665,24 +695,29 @@ training_data.remove_stopwords('processed_text', 'processed_text')
 training_data.train.head()
 
 
-# In[ ]:
+# In[20]:
 
 
 #Place pre-processed text into a list
 train_texts = training_data.train['processed_text'].tolist()
 
 # Open and process GloVe embeddings
-embeddings_index = {}
-with open('input/glove.6B.100d.txt', encoding="utf-8") as file:
-    for line in file:
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
-        embeddings_index[word] = coefs
-    file.close()
+GLOVE = 'input/glove.6B.100d.txt'
+if os.path.exists(GLOVE):
+    embeddings_index = {}
+    with open(GLOVE, encoding="utf-8") as file:
+        for line in file:
+            values = line.split()
+            word = values[0]
+            coefs = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = coefs
+        file.close()
+else:
+    print(f'Cannot find GloVe file {GLOVE}. Exiting.')
+    os.sys.exit()  
 
 
-# In[ ]:
+# In[21]:
 
 
 # Create word embeddings for the texts
@@ -703,7 +738,7 @@ for word, i in tok.word_index.items():
         text_embedding_matrix[i] = t_embedding_vector
 
 
-# In[ ]:
+# In[22]:
 
 
 # Split the data into training and testing sets
@@ -713,7 +748,7 @@ x_train, x_test, y_train, y_test = train_test_split(
                     test_size=0.2, shuffle=True)
 
 
-# In[ ]:
+# In[23]:
 
 
 #smote = SMOTE()
@@ -721,7 +756,7 @@ x_train, x_test, y_train, y_test = train_test_split(
 #print(X_train_smote.shape, y_train_smote.shape)
 
 
-# In[ ]:
+# In[24]:
 
 
 # Define early stopping for the training model
@@ -733,7 +768,7 @@ early_stopping = EarlyStopping(
 )
 
 
-# In[ ]:
+# In[25]:
 
 
 # Build and train the machine learning model
@@ -746,14 +781,14 @@ ml_model.train(x_train, y_train, early_stopping)
 #ml_model.train(x_train_smote, y_train_smote, early_stopping, 100, 64)
 
 
-# In[ ]:
+# In[26]:
 
 
 # Develop predictions on the test data
 y_pred = ml_model.validate(x_test)
 
 
-# In[ ]:
+# In[27]:
 
 
 # Report on the effectiveness of the model
@@ -764,13 +799,13 @@ print('Training complete. Model effectiveness:')
 print(classification_report(y_test, y_pred > crossover_cutoff))
 
 
-# In[ ]:
+# In[28]:
 
 
 ## BEGIN DETECTION & RESPONSE MODULE
 
 
-# In[ ]:
+# In[29]:
 
 
 # Connect to target social networking site
@@ -785,7 +820,7 @@ sns.connect(sns_client_id, sns_client_secret, sns_username, sns_password)
 sns.set_community(TARGET_COMMUNITY)
 
 
-# In[ ]:
+# In[32]:
 
 
 # Connect to target large language model
@@ -795,16 +830,17 @@ llm = LLM()
 
 # Connect to the target LLM
 llm.connect(llm_username, llm_password)
+#print(llm.query('Hi!'))
 
 
-# In[ ]:
+# In[33]:
 
 
 # Set up message queue
 MsgQ = Queue()
 
 
-# In[ ]:
+# In[34]:
 
 
 # Start four responder threads
@@ -815,7 +851,7 @@ for i in range(4):
     thread.start()
 
 
-# In[ ]:
+# In[35]:
 
 
 # Begin monitoring
