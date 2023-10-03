@@ -242,7 +242,7 @@ class SNS:
     def reply(self, my_comment, response):
         """ Post a response to a specific comment
 
-            Arg:
+            Args:
                 my_comment: An instantiation of a praw comment
                 response: A string containing the requested response.
     
