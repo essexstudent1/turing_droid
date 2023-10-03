@@ -1,80 +1,44 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
 """ turing_droid.py
 
     An AI chatbot to detect and mitigate anti-LGBTQ+ 
     cyberbullying on social networking sites.
 """
 
-## SETUP
-
-
-# In[109]:
-
-
-# Install required modules
-
-get_ipython().run_line_magic('pip', 'install numpy')
-get_ipython().run_line_magic('pip', 'install pandas')
-get_ipython().run_line_magic('pip', 'install scikit-learn')
-get_ipython().run_line_magic('pip', 'install nltk')
-get_ipython().run_line_magic('pip', 'install keras')
-get_ipython().run_line_magic('pip', 'install tensorflow')
-get_ipython().run_line_magic('pip', 'install praw')
-get_ipython().run_line_magic('pip', 'install python-dotenv')
-get_ipython().run_line_magic('pip', 'install hugchat==0.2.9')
-print('Module installation complete.')
-
-
-# In[1]:
-
+# SETUP
 
 # Import general modules
 import os
-import sys
 import re
 import string
-#import tqdm
+import time
+import random
+
 from threading import Thread
 from queue import Queue
 
 # Import Machne learning libraries and modules
 import numpy as np
 import pandas as pd
-#import tensorflow as tf
-
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, precision_recall_curve
-
 import nltk
-#from nltk.corpus import stopwords, wordnet
 from nltk.corpus import stopwords
-#from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
-#from nltk.probability import FreqDist
 from nltk.stem import SnowballStemmer
 
 from keras.preprocessing.text import Tokenizer
 from keras.callbacks import EarlyStopping
 from keras.utils import pad_sequences
 from keras.models import Sequential
-#from keras.layers import Dense, Bidirectional, LSTM, Dropout, BatchNormalization,SpatialDropout1D
 from keras.layers import Dense, Bidirectional, LSTM, Dropout, BatchNormalization
 from keras.layers import Embedding
 from keras.initializers import Constant
 from keras.optimizers import Adam
 from keras import backend as K
 
-#from imblearn.over_sampling import SMOTE
-
 # Reddit API libraries and modules
 import praw
-#import psaw
-#from psaw import PushshiftAPI
 from dotenv import load_dotenv
 
 # LLM libraries and modules
@@ -83,15 +47,7 @@ from hugchat.login import Login
 
 print('Library initalization complete.')
 
-
-# In[2]:
-
-
-# Define Classes
-
-
-# In[3]:
-
+## DEFINE CLASSES
 
 class Model:
     """ A class used to represent a machine learning model.
@@ -101,7 +57,9 @@ class Model:
             model: An instantiation of a Keras model class.
             epochs: The number of training iterations to invoke.
             batch_size: The training batch size.
-    
+            cb_threshold: The minimum prediction score for
+                cyberbullying.
+
         Methods:
             build: Add layers and other hyperparamenters to the model.
             train: Train the model using training data.
@@ -113,8 +71,9 @@ class Model:
         """ Initialize the class and create Keras model """
         self.name = 'BiLSTM'
         self.model = Sequential()
-        self.epochs = 100
+        self.epochs = 30
         self.batch_size = 64
+        self.cb_threshold = 0.4
 
     def build(self):
         """ Add layers and other hyperparamenters to the model """
@@ -180,23 +139,19 @@ class Model:
         my_text = remove_punct(my_text)
         my_text = stemming(my_text)
         my_text = word_tokenize(my_text)
-        #print('tokenized text', my_text)
         filtered_text = [t for t in my_text if not t in stopwords.words("english")]
         filtered_text = ' '.join(filtered_text)
-        #print('filtered text', filtered_text)
-        tok.fit_on_texts([filtered_text])
         test_seq =  tok.texts_to_sequences([filtered_text])
         my_padded_text = pad_sequences(test_seq, maxlen=MAX_LEN_TEXT, padding='post')
-        #print('padded:', my_padded_text)
-        my_prediction = self.model.predict(my_padded_text)
-        #print('raw prediction: ', my_prediction)
-        my_prediction = np.round(my_prediction).astype(int)
-        #print('rounded prediction: ', my_prediction)
+        # Ignore any words which haven't been learned by the model
+        my_padded_text[my_padded_text >= vocab_size] = 0
+        raw_predictions = self.model.predict(my_padded_text)
+        raw_prediction = raw_predictions[0]
+        if raw_prediction > self.cb_threshold:
+            my_prediction = 1
+        else:
+            my_prediction = 0
         return my_prediction
-
-
-# In[4]:
-
 
 class SNS:
     """ A class used to represent a social networking site (SNS) 
@@ -277,11 +232,9 @@ class SNS:
                 parent = comment.parent()
                 # Ignore replies to the chatbot
                 if parent.author != self.username:
-                    my_cb = int(my_model.predict_cb(comment.body))
+                    my_cb = my_model.predict_cb(comment.body)
                     # Log comments and results
                     print('New comment found. Text: ', comment.body)
-                    print('Bypassing CB prediction.')
-                    my_cb = 1
                     print('Cyberbullying prediction = ', my_cb)
                     if my_cb == 1:
                         my_queue.put(comment)
@@ -298,10 +251,6 @@ class SNS:
         """
         my_reply = my_comment.reply(response)
         return my_reply
-
-
-# In[5]:
-
 
 class Dataset:
     """ A class used to represent a dataset.
@@ -338,11 +287,6 @@ class Dataset:
             Returns:
                 None.
         """
-        #self.train[output_col] = self.train[input_col].apply(lambda x: remove_url(x))
-        #self.train[output_col] = self.train[output_col].apply(lambda x: remove_emoji(x))
-        #self.train[output_col] = self.train[output_col].apply(lambda x: remove_html(x))
-        #self.train[output_col] = self.train[output_col].apply(lambda x: remove_punct(x))
-        #self.train[output_col] = self.train[output_col].apply(lambda x: stemming(x))
         self.train[output_col] = self.train[input_col].apply(remove_url)
         self.train[output_col] = self.train[output_col].apply(remove_emoji)
         self.train[output_col] = self.train[output_col].apply(remove_html)
@@ -380,10 +324,6 @@ class Dataset:
                        not in set(nltk.corpus.stopwords.words('english'))])
         self.train[output_col] = [' '.join(map(str, l)) for l in self.train[output_col]]
 
-
-# In[6]:
-
-
 class LLM:
     """ A class used to represent an external large language model (LLM).
 
@@ -406,7 +346,7 @@ class LLM:
         self.cookies = None
         self.chatbot = None
         self.cookie_path_dir = "./llm_cookies"
-        
+
     def connect(self, username, password):
         """ Create a connection to the LLM.
 
@@ -421,9 +361,6 @@ class LLM:
         self.cookies = self.sign.login()
         self.sign.saveCookiesToDir(self.cookie_path_dir)
         self.chatbot = hugchat.ChatBot(cookies=self.cookies.get_dict())
-        print('Testing LLM')
-        print(self.chatbot.chat('Hi'))
-        
 
     def query(self, request):
         """ Send a request to the LLM.
@@ -435,23 +372,13 @@ class LLM:
                 The response from the LLM.
         """
         conv_id = self.chatbot.new_conversation()
-        #print('Conversation id: ', conv_id)
         self.chatbot.change_conversation(conv_id)
-        print(f'Sending request [{request}].')
+        print(f'Sending request to LLM: [{request}].')
         my_response = self.chatbot.chat(request)
-        #my_response = 'Debugging'
-        print(f'Recieved response [{my_response}]')
+        print(f'Recieved response from LLM: [{my_response}]')
         return my_response
 
-
-# In[7]:
-
-
 ## DEFINE FUNCTIONS
-
-
-# In[8]:
-
 
 def remove_url(text):
     """ Function to remove URLs from text.
@@ -534,10 +461,6 @@ def remove_punct(text):
     table = str.maketrans('', '', string.punctuation)
     return text.translate(table)
 
-
-# In[9]:
-
-
 def f1_score(my_true, my_pred):
     """ Function to define an algorithm to calculate
         an F1-score for a Keras model. Adapted from
@@ -559,15 +482,7 @@ def f1_score(my_true, my_pred):
     f1_val = 2*(precision*recall)/(precision+recall+K.epsilon())
     return f1_val
 
-
-# In[10]:
-
-
 ## DEFINE THREADS
-
-
-# In[11]:
-
 
 def responder(my_queue, my_llm, my_sns):
     """ A consumer thread to respond to cyberbullying messages.
@@ -583,35 +498,27 @@ def responder(my_queue, my_llm, my_sns):
     while True:
         my_comment = my_queue.get()
         # Wait a random amount of time before proceeding to emulate a real bystander
-        #time.sleep(random.randint(60, 360))
+        time.sleep(random.randint(60, 360))
         my_query = "The following comment from Reddit has been detected as " + \
             "cyberbullying against an LGBT individual. " + \
             "Commment = {" + my_comment.body + "}. " + \
-            "Provide a response to this comment as though you are a" + \
+            "Provide a response to this comment as though you are a " + \
             "bystander who wants to show support for the victim, "+ \
             "with the primary goal of mitigating the impact of this " + \
             "cyberbullying comment on their mental health. " + \
+            "Your response should avoid profanity, name-calling, or personal attacks. " + \
             "Your response should be both empathetic and respectful. " + \
             "Your response should be no longer than ten sentences and written in " + \
             "a casual tone appropriate for the website Reddit. " + \
             "Your response should be written in the persona of " + \
-            "a 30-year old person who lives in the USA, has a liberal" + \
+            "a 30-year old person who lives in the USA, has a liberal " + \
             "arts education, is technically adept, " + \
             "and is a strong ally of the LGBT community."
         my_response = my_llm.query(my_query)
-        print('Recieved response from LLM:', my_response)
         my_sns.reply(my_comment, my_response)
         my_queue.task_done()
 
-
-# In[12]:
-
-
 ## BEGIN MAIN APPLICATION
-
-
-# In[13]:
-
 
 # Load files and set variables
 
@@ -644,21 +551,9 @@ llm_password = os.environ['llm_password']
 # Set name of the subreddit to monitor
 TARGET_COMMUNITY = 'TuringDroidTesting'
 
-
-# In[14]:
-
-
 ### BEGIN TRAINING PROCESS
 
-
-# In[15]:
-
-
 print('Initialization complete. Commencing training process.')
-
-
-# In[16]:
-
 
 # Read the training data
 DATASET = 'input/anti-lgbt-cyberbullying.csv'
@@ -668,35 +563,14 @@ else:
     print(f'Cannot find dataset {DATASET}. Exiting.')
     os.sys.exit()
 
-training_data.train.head()
-
-
-# In[17]:
-
-
 # Clean the dataset
 training_data.clean('text', 'clean_text')
-training_data.train.head()
-
-
-# In[18]:
-
 
 # Tokenize the dataset
 training_data.tokenize('clean_text', 'processed_text')
-training_data.train.head()
-
-
-# In[19]:
-
 
 # Remove stopwords from the dataset
 training_data.remove_stopwords('processed_text', 'processed_text')
-training_data.train.head()
-
-
-# In[20]:
-
 
 #Place pre-processed text into a list
 train_texts = training_data.train['processed_text'].tolist()
@@ -714,22 +588,18 @@ if os.path.exists(GLOVE):
         file.close()
 else:
     print(f'Cannot find GloVe file {GLOVE}. Exiting.')
-    os.sys.exit()  
-
-
-# In[21]:
-
+    os.sys.exit()
 
 # Create word embeddings for the texts
 MAX_LEN_TEXT = 100
 
 tok = Tokenizer()
 tok.fit_on_texts(train_texts)
-vocab_size = len(tok.word_index) + 1
-encoded_text = tok.texts_to_sequences(train_texts)
-padded_text = pad_sequences(encoded_text, maxlen=MAX_LEN_TEXT, padding='post')
 
+encoded_text = tok.texts_to_sequences(train_texts)
 vocab_size = len(tok.word_index) + 1
+
+padded_text = pad_sequences(encoded_text, maxlen=MAX_LEN_TEXT, padding='post')
 
 text_embedding_matrix = np.zeros((vocab_size, 100))
 for word, i in tok.word_index.items():
@@ -737,27 +607,8 @@ for word, i in tok.word_index.items():
     if t_embedding_vector is not None:
         text_embedding_matrix[i] = t_embedding_vector
 
-
-# In[22]:
-
-
-# Split the data into training and testing sets
-
-x_train, x_test, y_train, y_test = train_test_split(
-                    padded_text, training_data.train["anti_lgbt"],
-                    test_size=0.2, shuffle=True)
-
-
-# In[23]:
-
-
-#smote = SMOTE()
-#x_train_smote, y_train_smote = smote.fit_resample(x_train, y_train.values)
-#print(X_train_smote.shape, y_train_smote.shape)
-
-
-# In[24]:
-
+x_train = padded_text
+y_train = training_data.train["anti_lgbt"]
 
 # Define early stopping for the training model
 early_stopping = EarlyStopping(
@@ -767,10 +618,6 @@ early_stopping = EarlyStopping(
     restore_best_weights=True,
 )
 
-
-# In[25]:
-
-
 # Build and train the machine learning model
 
 ml_model = Model()
@@ -778,35 +625,8 @@ ml_model = Model()
 ml_model.build()
 
 ml_model.train(x_train, y_train, early_stopping)
-#ml_model.train(x_train_smote, y_train_smote, early_stopping, 100, 64)
-
-
-# In[26]:
-
-
-# Develop predictions on the test data
-y_pred = ml_model.validate(x_test)
-
-
-# In[27]:
-
-
-# Report on the effectiveness of the model
-pr, rc, thresholds = precision_recall_curve(y_test, y_pred)
-crossover_index = np.max(np.where(pr == rc))
-crossover_cutoff = thresholds[crossover_index]
-print('Training complete. Model effectiveness:')
-print(classification_report(y_test, y_pred > crossover_cutoff))
-
-
-# In[28]:
-
 
 ## BEGIN DETECTION & RESPONSE MODULE
-
-
-# In[29]:
-
 
 # Connect to target social networking site
 
@@ -819,10 +639,6 @@ sns.connect(sns_client_id, sns_client_secret, sns_username, sns_password)
 # Set target commmunity within sns for monitoring
 sns.set_community(TARGET_COMMUNITY)
 
-
-# In[32]:
-
-
 # Connect to target large language model
 
 # Initialize LLM class
@@ -830,18 +646,9 @@ llm = LLM()
 
 # Connect to the target LLM
 llm.connect(llm_username, llm_password)
-#print(llm.query('Hi!'))
-
-
-# In[33]:
-
 
 # Set up message queue
 MsgQ = Queue()
-
-
-# In[34]:
-
 
 # Start four responder threads
 thread_list = []
@@ -850,29 +657,9 @@ for i in range(4):
     thread_list.append(thread)
     thread.start()
 
-
-# In[35]:
-
-
 # Begin monitoring
 print('Detection module initialized.')
 print('Connected to site ' + sns.name + ' using username ' + sns_username)
 print('Connected to LLM ' + llm.name + ' using username ' + llm_username)
 print('Starting to monitor community', TARGET_COMMUNITY)
 sns.monitor(ml_model, MsgQ)
-
-# Never reached
-
-
-# In[ ]:
-
-
-#some testing stuff
-#test_text = "Congratulations! I am so glad you are able to
-#be yourself. Love is love and gender doesn't have to be binary."
-#test_text = 'this is retarded. there are only two genders,
-#and pride is a sin. all queers go to hell.'
-#my_test = ml_model.predict_cb(test_text)
-#print(my_test)
-#
-
