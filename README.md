@@ -16,7 +16,7 @@ The chatbot provides the following functions:
 The chatbot uses a custom annotated dataset to train a deep learning model to do binary classification on text inputs, predicting whether the texts are anti-LGBT cyberbullying or not. 
 The dataset used is described in more detail at https://www.kaggle.com/datasets/kw5454331/anti-lgbt-cyberbullying-texts. 
 
-The model leverages GloVe word vectors, and is based on a bidirectional long short term memory (BiLSTM) recurrent neural network.
+The model leverages GloVe word vectors, and is based on a bidirectional long short term memory (BLSTM) recurrent neural network.
 
 2) Detection
 
