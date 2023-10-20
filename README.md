@@ -41,5 +41,3 @@ and placed in the 'input' folder.
  - The specific subreddit to monitor is assigned to the variable 'target_community'.
 
  - The chatbot executable script is turing_droid.py.
-
- - This repository also contains the Python script turingdroid_analysis.py. This was developed as a Kaggle notebook to do preliminary analysis on the dataset and compare the performance of various machine learning and deep learning algorithms. It is included here for completeness.
