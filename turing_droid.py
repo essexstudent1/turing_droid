@@ -70,7 +70,7 @@ class Model:
 
     def __init__(self):
         """ Initialize the class and create Keras model """
-        self.name = 'BiLSTM'
+        self.name = 'BLSTM'
         self.model = Sequential()
         self.epochs = 30
         self.batch_size = 64
@@ -127,7 +127,7 @@ class Model:
         """ Make a cyberbullying prediction on a string.
 
             Args:
-                input_text: A string for which a prediciton is requested.
+                input_text: A string for which a prediction is requested.
     
             Returns:
                 A boolean indicating the results of the prediction:
@@ -160,12 +160,12 @@ class SNS:
         Attributes:
             name: The name of the SNS. 
             connection: An instantiation of the praw Reddit class.
-            community: An instantiation of the praw subreddit method.
+            community: The results from the praw subreddit method.
             username: The username of the chatbot on the SNS.
             user_agent: The user agent to use to connect to the SNS.
     
         Methods:
-            connect: Create an instantion of the praw Reddit class.
+            connect: Create an instantiation of the praw Reddit class.
             set_community: Invoke the praw subreddit method.
             monitor: Monitor the SNS for new comments.
             reply: Post a reply to a comment on the SNS.
@@ -180,7 +180,7 @@ class SNS:
         self.user_agent = 'TuringDroid:1.0'
 
     def connect(self, client_id, client_secret, username, password):
-        """ Create an instantion of the praw Reddit class.
+        """ Create an instantiation of the praw Reddit class.
 
             Args:
                 client_id: The client identifier for the API.
@@ -331,7 +331,7 @@ class LLM:
         Attributes:
             name: The name of the LLM being used.
             sign: An instantiation of the hugchat Login class.
-            cookies: The results of the sign.login method.
+            cookies: The results of the hugchat sign.login method.
             chatbot: An instantiation of the hugchat Chatbot class.
             cookie_path_dir: Path to save the LLM authentication cookies.
 
@@ -454,7 +454,7 @@ def remove_punct(text):
 
 def f1_score(my_true, my_pred):
     """ Function to define an algorithm to calculate
-        an F1-score for a Keras model. Adapted from
+        an F1 score for a Keras model. Adapted from
          https://saturncloud.io/blog/
              adding-f1score-metric-in-compile-method-for-keras-a-comprehensive-guide/
 
@@ -463,7 +463,7 @@ def f1_score(my_true, my_pred):
             my_pred: A list of predicted classifications.
 
         Returns:
-            A calculated F1-score.
+            A calculated F1 score.
     """
     true_positives = K.sum(K.round(K.clip(my_true * my_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(my_true, 0, 1)))
@@ -488,7 +488,7 @@ def responder(my_queue, my_llm, my_sns):
     """
     while True:
         my_comment = my_queue.get()
-        # Wait a random amount of time before proceeding to emulate a real bystander
+        # Wait a random amount of time before proceeding, to emulate a real bystander
         time.sleep(random.randint(60, 360))
         my_query = "The following comment from Reddit has been detected as " + \
             "cyberbullying against an LGBT individual. " + \
@@ -522,7 +522,7 @@ nltk.download('punkt')
 if not load_dotenv('../.env'):
     print('.env file not found. Trying to get credentials from environment variables.')
 
-#V erify that required credentials exist as environment variables
+# Verify that required credentials exist as environment variables
 credential_vars = ["sns_client_id", "sns_client_secret",
                    "sns_username", "sns_password",
                    "llm_username", "llm_password"]
